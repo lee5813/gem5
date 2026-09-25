@@ -158,6 +158,7 @@ class MinorDefaultFloatSimdFU(MinorFU):
     timings = [MinorFUTiming(description='FloatSimd',
         srcRegsRelativeLats=[2])]
     opLat = 6
+    issueLat = 1
 
 class MinorDefaultPredFU(MinorFU):
     opClasses = minorMakeOpClassSet(['SimdPredAlu'])
@@ -217,7 +218,7 @@ class BaseMinorCPU(BaseCPU):
         "Backward cycle delay from Fetch2 to Fetch1 for branch prediction"
         " signalling (0 means in the same cycle, 1 mean the next cycle)")
 
-    fetch2InputBufferSize = Param.Unsigned(2,
+    fetch2InputBufferSize = Param.Unsigned(1,
         "Size of input buffer to Fetch2 in cycles-worth of insts.")
     fetch2ToDecodeForwardDelay = Param.Cycles(1,
         "Forward cycle delay from Fetch2 to Decode (1 means next cycle)")
@@ -229,23 +230,23 @@ class BaseMinorCPU(BaseCPU):
         "Size of input buffer to Decode in cycles-worth of insts.")
     decodeToExecuteForwardDelay = Param.Cycles(1,
         "Forward cycle delay from Decode to Execute (1 means next cycle)")
-    decodeInputWidth = Param.Unsigned(2,
+    decodeInputWidth = Param.Unsigned(1,
         "Width (in instructions) of input to Decode (and implicitly"
         " Decode's own width)")
     decodeCycleInput = Param.Bool(True,
         "Allow Decode to pack instructions from more than one input cycle"
         " to fill its output each cycle")
 
-    executeInputWidth = Param.Unsigned(2,
+    executeInputWidth = Param.Unsigned(1,
         "Width (in instructions) of input to Execute")
     executeCycleInput = Param.Bool(True,
         "Allow Execute to use instructions from more than one input cycle"
         " each cycle")
-    executeIssueLimit = Param.Unsigned(2,
+    executeIssueLimit = Param.Unsigned(1,
         "Number of issuable instructions in Execute each cycle")
     executeMemoryIssueLimit = Param.Unsigned(1,
         "Number of issuable memory instructions in Execute each cycle")
-    executeCommitLimit = Param.Unsigned(2,
+    executeCommitLimit = Param.Unsigned(1,
         "Number of committable instructions in Execute each cycle")
     executeMemoryCommitLimit = Param.Unsigned(1,
         "Number of committable memory references in Execute each cycle")
