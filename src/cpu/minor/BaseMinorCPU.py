@@ -228,7 +228,7 @@ class BaseMinorCPU(BaseCPU):
 
     decodeInputBufferSize = Param.Unsigned(3,
         "Size of input buffer to Decode in cycles-worth of insts.")
-    decodeToExecuteForwardDelay = Param.Cycles(1,
+    decodeToExecuteForwardDelay = Param.Cycles(2,
         "Forward cycle delay from Decode to Execute (1 means next cycle)")
     decodeInputWidth = Param.Unsigned(1,
         "Width (in instructions) of input to Decode (and implicitly"

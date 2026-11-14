@@ -417,6 +417,28 @@ class InstructionQueue
     /** Pointer to list of active threads. */
     std::list<ThreadID> *activeThreads;
 
+    ////////////// WIB & BIT-VECTOR //////////////
+
+    /** WIB. */
+    std::list<DynInstPtr> waitingInstBuffer;
+
+    /** Maximum number of entries in the WIB. */
+    unsigned numWIBEntries;
+
+    /** Current number of entries in the WIB. */
+    unsigned WIBCount;
+
+    /** Bit-Vector table for WIB */
+    std::map<InstSeqNum, std::vector<bool>> loadMissBitVector;
+
+    /** Move instructions from IQ to the WIB. */
+    void moveToWIB(const DynInstPtr &inst, InstSeqNum load_seq_num);
+
+    /** Reinsert instructions from the WIB back to the IQ. */
+    void reinsertFromWIB(InstSeqNum load_seq_num);
+    
+    ////////////////////////////////////////////
+
     /** Per Thread IQ count */
     unsigned count[MaxThreads];
 

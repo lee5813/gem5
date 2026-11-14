@@ -92,6 +92,8 @@ InstructionQueue::InstructionQueue(CPU *cpu_ptr, IEW *iew_ptr,
       iqPolicy(params.smtIQPolicy),
       numThreads(params.numThreads),
       numEntries(params.numIQEntries),
+      numWIBEntries(params.numWIBEntries),
+      WIBCount(0),
       totalWidth(params.issueWidth),
       commitToIEWDelay(params.commitToIEWDelay),
       iqStats(cpu, totalWidth),
@@ -158,6 +160,78 @@ InstructionQueue::InstructionQueue(CPU *cpu_ptr, IEW *iew_ptr,
    }
     for (ThreadID tid = numThreads; tid < MaxThreads; tid++) {
         maxEntries[tid] = 0;
+    }
+}
+void
+InstructionQueue::moveToWIB(const DynInstPtr &inst, InstSeqNum load_seq_num)
+{
+    // 1. Ignore if WIB is full
+    if (WIBCount >= numWIBEntries) {
+        return; 
+    }
+
+    // 2. Return the entry that the instruction was occupying in the IQ and decrease the count
+    if (inst->threadNumber != InvalidThreadID) {
+        count[inst->threadNumber]--;
+    }
+    freeEntries++;
+    numEntries--;
+
+    // 3. Add the instruction to the WIB list
+    waitingInstBuffer.push_back(inst);
+    WIBCount++;
+
+    // 4. Bit-Vector update
+    loadMissBitVector[load_seq_num].push_back(true);
+}
+
+void
+InstructionQueue::reinsertFromWIB(InstSeqNum load_seq_num)
+{
+    // 1. Check if the load_seq_num exists in the bit vector map
+    auto it = loadMissBitVector.find(load_seq_num);
+    if (it == loadMissBitVector.end()) {
+        return;
+    }
+
+    std::vector<bool>& bit_vector = it->second;
+    auto wib_it = waitingInstBuffer.begin();
+    size_t vector_idx = 0;
+
+    // 2. Reinsert the instructions back into the IQ based on the bit vector
+    while (wib_it != waitingInstBuffer.end() && vector_idx < bit_vector.size()) {
+        if (bit_vector[vector_idx]) {
+            DynInstPtr inst = *wib_it;
+
+            count[inst->threadNumber]++;
+            freeEntries--;
+            numEntries++;
+
+            inst->markSrcRegReady();
+
+            addIfReady(inst); 
+                
+            wib_it = waitingInstBuffer.erase(wib_it);
+            WIBCount--;
+                
+            bit_vector[vector_idx] = false;
+            vector_idx++;
+            continue; 
+        }
+        ++wib_it;
+        ++vector_idx;
+    }
+
+    // 3. Remove the entry from the bit vector map if all bits are cleared
+    bool all_cleared = true;
+    for (bool bit : bit_vector) {
+        if (bit) {
+            all_cleared = false;
+            break;
+        }
+    }
+    if (all_cleared) {
+        loadMissBitVector.erase(it);
     }
 }
 
@@ -1059,6 +1133,10 @@ InstructionQueue::wakeDependents(const DynInstPtr &completed_inst)
         // Mark the scoreboard as having that register ready.
         regScoreboard[dest_reg->flatIndex()] = true;
     }
+    // Inst moves back from WIB to IQ when load completes.
+    if (completed_inst->isLoad()) {
+        reinsertFromWIB(completed_inst->seqNum);
+    }
     return dependents;
 }
 
@@ -1118,6 +1196,20 @@ InstructionQueue::blockMemInst(const DynInstPtr &blocked_inst)
     DPRINTF(IQ, "Memory inst [sn:%llu] PC %s is blocked, will be "
             "reissued later\n", blocked_inst->seqNum,
             blocked_inst->pcState());
+
+    // Inst moves from IQ to WIB when cache miss occurs
+    if (blocked_inst->isLoad()) {
+        for (int i=0; i<blocked_inst->numDestRegs(); ++i) {
+            PhysRegIdPtr dest_reg = blocked_inst->renamedDestIdx(i);
+            if (dest_reg->isFixedMapping()) continue;
+
+            DynInstPtr dep_inst = dependGraph.pop(dest_reg->flatIndex());
+            while (dep_inst) {
+                moveToWIB(dep_inst, blocked_inst->seqNum);
+                dep_inst = dependGraph.pop(dest_reg->flatIndex());
+            }
+        }
+    }
 }
 
 void

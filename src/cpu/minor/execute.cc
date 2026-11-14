@@ -38,6 +38,7 @@
 #include "cpu/minor/execute.hh"
 
 #include <functional>
+#include <cstdlib>
 
 #include "cpu/minor/cpu.hh"
 #include "cpu/minor/exec_context.hh"
@@ -271,8 +272,21 @@ Execute::tryToBranch(MinorDynInstPtr inst, Fault fault, BranchData &branch)
                 " inst: %s\n",
                 inst->pc->instAddr(), inst->predictedTarget->instAddr(),
                 *inst);
+            /* Assignment3 Part2 Conducted Using Environment Variable */
+            // Read environment variable BP_ACCURACY (default setting 1.0 = 100%)
+            const char* bp_env = std::getenv("BP_ACCURACY");
+            double accuracy = bp_env ? std::atof(bp_env) : 1.0;
 
-            reason = BranchData::CorrectlyPredictedBranch;
+            // Rand between 0 and 1
+            double rand_val = (double)rand() / RAND_MAX;
+
+            //if rand_val is greater than accuracy, then we will consider this a misprediction
+            if (rand_val > accuracy) {
+                reason = BranchData::BadlyPredictedBranchTarget;
+            } else {
+                reason = BranchData::CorrectlyPredictedBranch;
+            }
+
         } else {
             /* Branch prediction got the wrong target */
             DPRINTF(Branch, "Predicted a branch from 0x%x to 0x%x"

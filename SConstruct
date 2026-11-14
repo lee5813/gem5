@@ -174,11 +174,11 @@ Export('MakeAction')
 #
 ########################################################################
 
-main = Environment(tools=[
+main = Environment(ENV=environ, tools=[
         'default', 'git', TempFileSpawn, EnvDefaults, MakeActionTool,
         ConfigFile, AddLocalRPATH, SwitchingHeaders, TagImpliesTool, Blob
     ])
-
+main.Append(LIBS=['rt'])
 main.Tool(SCons.Tool.FindTool(['gcc', 'clang'], main))
 main.Tool(SCons.Tool.FindTool(['g++', 'clang++'], main))
 
@@ -319,7 +319,7 @@ def config_embedded_python(env):
         if conf.TryAction(f'@{python_config} --embed')[0]:
             cmd.append('--embed')
 
-    def flag_filter(env, cmd_output):
+    def flag_filter(env, cmd_output, unique=True):
         flags = cmd_output.split()
         prefixes = ('-l', '-L', '-I')
         is_useful = lambda x: any(x.startswith(prefix) for prefix in prefixes)
@@ -547,6 +547,9 @@ for variant_path in variant_paths:
                     '-Wl,--as-needed'])
 
     env['HAVE_PKG_CONFIG'] = env.Detect('pkg-config')
+    env.Append(CPPPATH=['/home/min/a/lee5813/local/include'])
+    env.Append(LIBPATH=['/home/min/a/lee5813/local/lib'])
+    env.Append(LIBS=['z'])
 
     with gem5_scons.Configure(env) as conf:
         # On Solaris you need to use libsocket for socket ops
@@ -554,10 +557,10 @@ for variant_path in variant_paths:
                 [None, 'socket'], 'sys/socket.h', 'C++', 'accept(0,0,0);'):
            error("Can't find library with socket calls (e.g. accept()).")
 
-        if not conf.CheckLibWithHeader('z', 'zlib.h', 'C++','zlibVersion();'):
-            error('Did not find needed zlib compression library '
-                  'and/or zlib.h header file.\n'
-                  'Please install zlib and try again.')
+        #if not conf.CheckLibWithHeader('z', 'zlib.h', 'C++','zlibVersion();'):
+        #    error('Did not find needed zlib compression library '
+        #          'and/or zlib.h header file.\n'
+        #          'Please install zlib and try again.')
 
     if not GetOption('without_tcmalloc'):
         with gem5_scons.Configure(env) as conf:
